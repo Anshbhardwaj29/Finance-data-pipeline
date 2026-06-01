@@ -1,0 +1,7 @@
+loguru
+pandas
+numpy
+pyyaml
+websockets
+openpyxl
+requests

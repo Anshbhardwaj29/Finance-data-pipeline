@@ -1,0 +1,14 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local configurations and private keys
+config_local.yaml
+.env
+
+# Large log files and trading reports
+logs/
+*.log
+*.xlsx
+.system_generated/

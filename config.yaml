@@ -1,0 +1,53 @@
+# Trading Pipeline Configuration
+
+# System execution mode: PAPER, BACKTEST, or LIVE
+execution_mode: "PAPER"
+
+# Active broker adapter: paper, dhan
+active_broker: "paper"
+
+# Broker specific configuration
+broker:
+  dhan:
+    api_token: "YOUR_DHAN_TOKEN_HERE"
+  paper:
+    initial_capital: 1000000.0
+    tick_interval_seconds: 0.01 # Fast updates for realistic testing
+    symbols:
+      - "NIFTY50"
+      - "BANKNIFTY"
+
+# Risk Management parameters
+risk:
+  risk_reward_ratio: 1.5 # Target premium probability
+  risk_percentage_per_trade: 0.0005 # 0.05% risk
+  default_qty: 25 # Nifty Lot Size
+
+# Strategies configuration
+strategies:
+  - type: "High_Probability_Nifty"
+    name: "Nifty_HighProb_EMA_RSI"
+    params:
+      ema_fast: 9
+      ema_slow: 21
+      rsi_period: 14
+      rsi_buy_min: 50
+      rsi_sell_max: 50
+
+# Interactive Web Dashboard Configuration
+dashboard:
+  enabled: true
+  port: 8050
+
+# Real-time Notifications configuration
+notifications:
+  enabled: true # Set to true once Twilio credentials are filled below
+  provider: "twilio_whatsapp" # options: twilio_whatsapp, twilio_sms, telegram
+  telegram:
+    bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
+    chat_id: "YOUR_TELEGRAM_CHAT_ID"
+  twilio:
+    account_sid: "ACa2a8555a17dbc8819763c348bd64a53c"
+    auth_token: "6b4a60447af78951d0222cae049e103e"
+    from_number: "+14155238886" # e.g. +14155238886 for Sandbox
+    to_number: "+919211298535" # e.g. +91XXXXXXXXXX
