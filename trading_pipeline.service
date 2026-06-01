@@ -1,0 +1,17 @@
+[Unit]
+Description=24/7 Automated ATM Options Trading Pipeline & Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/trading_pipeline
+ExecStart=/usr/bin/python3 main.py
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=trading-pipeline
+
+[Install]
+WantedBy=multi-user.target
