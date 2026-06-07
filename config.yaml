@@ -45,7 +45,7 @@ notifications:
   provider: "telegram"  # options: telegram, twilio_whatsapp, twilio_sms
   eod_report_time: "23:55"  # IST time to auto-send daily Excel report to Telegram
   telegram:
-    bot_token: "8802477645:AAFJdo9IwXMkoj4h9uv5cuVxUkH8P3NSaT0"
+    bot_token: "8802477645:AAFJ4o9lwXMkoj4h9uv5cuVxUkH8P3NSaT0"
     chat_id: "1217048553"
   twilio:
     account_sid: "ACa2a8555a17dbc8819763c348bd64a53c"
