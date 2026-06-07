@@ -4,11 +4,12 @@
 execution_mode: "PAPER"
 
 # Active broker adapter: paper, dhan
-active_broker: "paper"
+active_broker: "dhan"
 
 # Broker specific configuration
 broker:
   dhan:
+    client_id: "YOUR_DHAN_CLIENT_ID"
     api_token: "YOUR_DHAN_TOKEN_HERE"
   paper:
     initial_capital: 1000000.0

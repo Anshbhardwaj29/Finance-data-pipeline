@@ -28,8 +28,10 @@ async def main():
 
     # 1. Initialize the appropriate broker adapter based on configurations
     if settings.active_broker == "dhan":
-        dhan_token = settings.broker_config.get("dhan", {}).get("api_token", "YOUR_DHAN_TOKEN_HERE")
-        broker = DhanAdapter(api_token=dhan_token)
+        dhan_cfg = settings.broker_config.get("dhan", {})
+        client_id = dhan_cfg.get("client_id", "YOUR_DHAN_CLIENT_ID")
+        api_token = dhan_cfg.get("api_token", "YOUR_DHAN_TOKEN_HERE")
+        broker = DhanAdapter(client_id=client_id, api_token=api_token)
     elif settings.active_broker == "binance":
         binance_cfg = settings.broker_config.get("binance", {})
         symbols = binance_cfg.get("symbols", ["BTCUSDT", "ETHUSDT"])
