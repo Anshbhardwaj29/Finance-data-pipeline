@@ -40,6 +40,46 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                     "trades": list(reversed(engine_instance.risk_manager.trade_history[-15:])) # last 15
                 }
             self.wfile.write(json.dumps(status).encode("utf-8"))
+            
+        elif self.path == "/api/reports":
+            import os
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            
+            reports = []
+            if os.path.exists("logs"):
+                for f in sorted(os.listdir("logs"), reverse=True):
+                    if f.endswith(".xlsx") or f == "activity_precise.log":
+                        filepath = os.path.join("logs", f)
+                        reports.append({
+                            "name": f,
+                            "size": os.path.getsize(filepath),
+                            "modified": os.path.getmtime(filepath)
+                        })
+            self.wfile.write(json.dumps(reports).encode("utf-8"))
+            
+        elif self.path.startswith("/download/"):
+            import os
+            import urllib.parse
+            # Prevent directory traversal attacks
+            filename = os.path.basename(urllib.parse.unquote(self.path[10:]))
+            filepath = os.path.join("logs", filename)
+            
+            if os.path.exists(filepath) and (filename.endswith(".xlsx") or filename == "activity_precise.log"):
+                self.send_response(200)
+                if filename.endswith(".xlsx"):
+                    self.send_header("Content-type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                else:
+                    self.send_header("Content-type", "text/plain; charset=utf-8")
+                self.send_header("Content-Disposition", f"attachment; filename={filename}")
+                self.end_headers()
+                with open(filepath, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_response(404)
+                self.end_headers()
         else:
             self.send_response(404)
             self.end_headers()
@@ -421,6 +461,16 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                     <p style="color: var(--text-muted); text-align: center; padding: 2rem 0;">No active open exposures.</p>
                 </div>
             </div>
+
+            <!-- Downloadable Reports & Logs Desk -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Audit Reports & Logs</div>
+                </div>
+                <div id="reports-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    <p style="color: var(--text-muted); text-align: center; padding: 1rem 0;">Loading reports...</p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -590,8 +640,39 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
             }
         }
 
+        function updateReports() {
+            fetch('/api/reports')
+                .then(r => r.json())
+                .then(files => {
+                    const container = document.getElementById('reports-list');
+                    if (files && files.length > 0) {
+                        container.innerHTML = files.map(f => {
+                            const dateStr = new Date(f.modified * 1000).toLocaleString();
+                            const sizeKb = (f.size / 1024).toFixed(1);
+                            const isExcel = f.name.endsWith('.xlsx');
+                            const icon = isExcel ? '📊' : '📝';
+                            const titleColor = isExcel ? 'var(--success)' : 'var(--primary)';
+                            return `
+                                <div style="background: rgba(255,255,255,0.01); padding: 1rem; border-radius: 14px; border: 1px solid rgba(255,255,255,0.04); display: flex; justify-content: space-between; align-items: center; transition: all 0.3s;" onmouseover="this.style.borderColor='rgba(0,242,254,0.2)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.04)'">
+                                    <div>
+                                        <div style="font-weight: 600; font-size: 0.95rem; color: ${titleColor};">${icon} ${f.name}</div>
+                                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">Size: ${sizeKb} KB | Mod: ${dateStr}</div>
+                                    </div>
+                                    <a href="/download/${encodeURIComponent(f.name)}" download style="background: rgba(0,242,254,0.1); border: 1px solid rgba(0,242,254,0.3); color: var(--primary); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-decoration: none; display: inline-block; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--primary)'; this.style.color='#000';" onmouseout="this.style.background='rgba(0,242,254,0.1)'; this.style.color='var(--primary)';">Download</a>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 1rem 0;">No logs or reports available.</p>';
+                    }
+                })
+                .catch(err => console.error("Reports load error:", err));
+        }
+
         setInterval(updateMetrics, 1000);
         updateMetrics();
+        setInterval(updateReports, 5000);
+        updateReports();
     </script>
 </body>
 </html>
