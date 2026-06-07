@@ -29,7 +29,8 @@ class TradingEngine:
 
         # Start the interactive UI dashboard
         if settings.config.get("dashboard", {}).get("enabled", True):
-            port = settings.config.get("dashboard", {}).get("port", 8050)
+            import os
+            port = int(os.environ.get("PORT", settings.config.get("dashboard", {}).get("port", 8050)))
             start_dashboard_server(self, port=port)
 
     def add_strategy(self, strategy: BaseStrategy):
