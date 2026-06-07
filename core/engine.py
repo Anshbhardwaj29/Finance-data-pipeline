@@ -1,6 +1,7 @@
 import asyncio
 import time
 import copy
+import threading
 from typing import List
 from core.broker import BaseBroker
 from strategies.base import BaseStrategy
@@ -32,6 +33,39 @@ class TradingEngine:
             import os
             port = int(os.environ.get("PORT", settings.config.get("dashboard", {}).get("port", 8050)))
             start_dashboard_server(self, port=port)
+
+        # Start the EOD (End-of-Day) daily report scheduler in a background thread
+        self._start_eod_scheduler()
+
+    def _start_eod_scheduler(self):
+        """
+        Starts a background daemon thread that checks the time every 60 seconds.
+        At 23:55 IST (configurable), it automatically sends the daily Excel report to Telegram.
+        """
+        def _eod_loop():
+            report_sent_for_date = None  # Track which date the report was already sent for
+            logger.info("EOD Daily Report Scheduler started (triggers at 23:55 IST every day).")
+            while True:
+                try:
+                    # Use IST (UTC+5:30)
+                    import datetime
+                    now_utc = datetime.datetime.utcnow()
+                    now_ist = now_utc + datetime.timedelta(hours=5, minutes=30)
+                    today_str = now_ist.strftime("%Y-%m-%d")
+
+                    # Trigger at 23:55 IST, once per day
+                    if now_ist.hour == 23 and now_ist.minute == 55 and report_sent_for_date != today_str:
+                        report_sent_for_date = today_str
+                        logger.success(f"EOD Scheduler: Sending daily trading report for {today_str} to Telegram...")
+                        self.notifier.send_daily_report()
+
+                except Exception as e:
+                    logger.error(f"EOD Scheduler encountered an error: {e}")
+
+                time.sleep(60)  # Check every 60 seconds
+
+        thread = threading.Thread(target=_eod_loop, daemon=True, name="EOD-Report-Scheduler")
+        thread.start()
 
     def add_strategy(self, strategy: BaseStrategy):
         self.strategies.append(strategy)
