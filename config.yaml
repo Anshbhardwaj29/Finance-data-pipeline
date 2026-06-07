@@ -16,6 +16,11 @@ broker:
     symbols:
       - "NIFTY50"
       - "BANKNIFTY"
+  binance:
+    symbols:
+      - "BTCUSDT"
+      - "ETHUSDT"
+      - "SOLUSDT"
 
 # Risk Management parameters
 risk:
