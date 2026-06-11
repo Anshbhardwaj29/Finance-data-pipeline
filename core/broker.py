@@ -23,8 +23,8 @@ class BaseBroker(ABC):
 
 class DhanAdapter(BaseBroker):
     def __init__(self, client_id: str, api_token: str):
-        self.client_id = client_id
-        self.api_token = api_token
+        self.client_id = client_id if client_id and "YOUR_DHAN" not in client_id else "1108994075"
+        self.api_token = api_token if api_token and "YOUR_DHAN" not in api_token else "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzgxMjg0MTIyLCJpYXQiOjE3ODExOTc3MjIsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA4OTk0MDc1In0.lD9FvKr-SB8w1BDix5QFFuBRQJok6aCYFZ1CBtFgy0rTd8_2RhovDSnPBx7ljGB1xi6LMclydCFFF0Ohd2wLFQ"
         self.loop = None
         self.queue = None
         self.feed = None
@@ -53,7 +53,7 @@ class DhanAdapter(BaseBroker):
                 self.is_running = False
                 if self.feed:
                     try:
-                        self.feed.disconnect()  # Disconnect the websocket
+                        await self.feed.disconnect()  # Disconnect the websocket
                     except Exception as e:
                         logger.error(f"Error disconnecting Dhan Feed: {e}")
                 # Stop the entire engine loop gracefully
@@ -63,14 +63,14 @@ class DhanAdapter(BaseBroker):
 
     def _run_dhan_feed(self):
         try:
-            from dhanhq import dhanhq, MarketFeed
+            from dhanhq import DhanContext, MarketFeed
             
-            dhan_context = dhanhq(self.client_id, self.api_token)
+            dhan_context = DhanContext(self.client_id, self.api_token)
             
             # Subscribing to NIFTY 50 (13) and BANK NIFTY (14) Index tickers
             instruments = [
-                (MarketFeed.IDX_I, "13", MarketFeed.Ticker),
-                (MarketFeed.IDX_I, "14", MarketFeed.Ticker)
+                (MarketFeed.IDX, "13", MarketFeed.Ticker),
+                (MarketFeed.IDX, "14", MarketFeed.Ticker)
             ]
             
             self.feed = MarketFeed(dhan_context, instruments)
