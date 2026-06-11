@@ -93,6 +93,13 @@ async def main():
         logger.critical(f"Win Rate:          {summary['win_rate_pct']:.2f}%")
         logger.critical(f"Open Positions:    {summary['active_positions_count']}")
         logger.critical("==================================================")
+        
+        # Send EOD report to Telegram
+        try:
+            logger.info("Transmitting final daily report to your notification channel...")
+            engine.notifier.send_daily_report()
+        except Exception as e:
+            logger.error(f"Failed to send daily report: {e}")
 
 if __name__ == "__main__":
     try:
