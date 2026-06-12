@@ -67,10 +67,10 @@ class DhanAdapter(BaseBroker):
             
             dhan_context = DhanContext(self.client_id, self.api_token)
             
-            # Subscribing to NIFTY 50 (13) and BANK NIFTY (14) Index tickers
+            # Subscribing to NIFTY 50 (13) and BANK NIFTY (25) Index tickers
             instruments = [
                 (MarketFeed.IDX, "13", MarketFeed.Ticker),
-                (MarketFeed.IDX, "14", MarketFeed.Ticker)
+                (MarketFeed.IDX, "25", MarketFeed.Ticker)
             ]
             
             self.feed = MarketFeed(dhan_context, instruments)
@@ -89,7 +89,7 @@ class DhanAdapter(BaseBroker):
                     if not sec_id or ltp is None:
                         return
                         
-                    symbol = "NIFTY50" if sec_id == "13" else "BANKNIFTY" if sec_id == "14" else None
+                    symbol = "NIFTY50" if sec_id == "13" else "BANKNIFTY" if sec_id == "25" else None
                     if not symbol:
                         return
                         
@@ -108,7 +108,7 @@ class DhanAdapter(BaseBroker):
             self.feed.on_connect = on_connect
             self.feed.on_message = on_message
             
-            self.feed.run_forever()
+            self.feed.run()
             
         except Exception as e:
             logger.error(f"Dhan MarketFeed thread failed: {e}")
