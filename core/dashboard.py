@@ -11,6 +11,11 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass # Suppress standard noise to keep terminal readable
 
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+
     def do_GET(self):
         global engine_instance
         
