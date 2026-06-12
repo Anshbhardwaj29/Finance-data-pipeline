@@ -115,9 +115,11 @@ class DhanAdapter(BaseBroker):
 
     def _is_market_hours(self) -> bool:
         """Checks if current time is within Indian market hours (09:15 - 15:30 IST, Mon-Fri)."""
-        # IST is UTC+5:30
-        now_utc = datetime.utcnow()
-        now_ist = now_utc + timedelta(hours=5, minutes=30)
+        from datetime import timezone
+        
+        # Get current time in IST (UTC+5:30) using timezone-aware datetime
+        ist_tz = timezone(timedelta(hours=5, minutes=30))
+        now_ist = datetime.now(ist_tz)
         
         # Weekday check: Mon=0, Fri=4
         if now_ist.weekday() > 4:
