@@ -47,10 +47,10 @@ class TradingEngine:
             logger.info("EOD Daily Report Scheduler started (triggers at 23:55 IST every day).")
             while True:
                 try:
-                    # Use IST (UTC+5:30)
+                    # Use IST (UTC+5:30) timezone-aware datetime
                     import datetime
-                    now_utc = datetime.datetime.utcnow()
-                    now_ist = now_utc + datetime.timedelta(hours=5, minutes=30)
+                    ist_tz = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+                    now_ist = datetime.datetime.now(ist_tz)
                     today_str = now_ist.strftime("%Y-%m-%d")
 
                     # Trigger at 23:55 IST, once per day
