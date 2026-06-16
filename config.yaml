@@ -39,6 +39,7 @@ strategies:
       rsi_period: 14
       rsi_buy_min: 50
       rsi_sell_max: 50
+      timeframe_seconds: 60 # 1 minute candle timeframe (in seconds)
 
 # Interactive Web Dashboard Configuration
 dashboard:

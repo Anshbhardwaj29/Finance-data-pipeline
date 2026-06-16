@@ -56,7 +56,8 @@ async def main():
         if strat_type == "SMA_Crossover":
             strategy = SMACrossoverStrategy(
                 short_window=strat_params.get("short_window", 9),
-                long_window=strat_params.get("long_window", 21)
+                long_window=strat_params.get("long_window", 21),
+                timeframe_seconds=strat_params.get("timeframe_seconds", 60)
             )
             engine.add_strategy(strategy)
         elif strat_type == "High_Probability_Nifty":
@@ -65,7 +66,8 @@ async def main():
                 ema_slow=strat_params.get("ema_slow", 21),
                 rsi_period=strat_params.get("rsi_period", 14),
                 rsi_buy_min=strat_params.get("rsi_buy_min", 50),
-                rsi_sell_max=strat_params.get("rsi_sell_max", 50)
+                rsi_sell_max=strat_params.get("rsi_sell_max", 50),
+                timeframe_seconds=strat_params.get("timeframe_seconds", 60)
             )
             engine.add_strategy(strategy)
         else:

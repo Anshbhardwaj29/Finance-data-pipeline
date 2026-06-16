@@ -2,9 +2,10 @@ import collections
 from typing import Dict, Any
 from strategies.base import BaseStrategy
 from core.logger import custom_logger as logger
+from core.candle_aggregator import CandleAggregator
 
 class HighProbabilityNiftyStrategy(BaseStrategy):
-    def __init__(self, ema_fast=9, ema_slow=21, rsi_period=14, rsi_buy_min=50, rsi_sell_max=50):
+    def __init__(self, ema_fast=9, ema_slow=21, rsi_period=14, rsi_buy_min=50, rsi_sell_max=50, timeframe_seconds=60):
         super().__init__(f"HighProb_EMA_{ema_fast}x{ema_slow}_RSI")
         self.ema_fast = ema_fast
         self.ema_slow = ema_slow
@@ -12,8 +13,7 @@ class HighProbabilityNiftyStrategy(BaseStrategy):
         self.rsi_buy_min = rsi_buy_min
         self.rsi_sell_max = rsi_sell_max
         
-        # Historical prices memory
-        self.prices = collections.defaultdict(list)
+        self.aggregator = CandleAggregator(timeframe_seconds=timeframe_seconds)
         self.position = collections.defaultdict(int)
 
     def _calculate_ema(self, prices_list, period) -> float:
@@ -45,14 +45,14 @@ class HighProbabilityNiftyStrategy(BaseStrategy):
 
     async def process_tick(self, tick: Dict[str, Any]) -> int:
         symbol = tick['symbol']
-        current_price = tick['close']
         
-        history = self.prices[symbol]
-        history.append(current_price)
-        
-        # Max limit memory size
-        if len(history) > 100:
-            history.pop(0)
+        # Aggregate tick into candle
+        closed_close = self.aggregator.aggregate(tick)
+        if closed_close is None:
+            return 0  # Wait for candle to close
+            
+        history = self.aggregator.candle_history[symbol]
+        logger.info(f"Candle Closed: {symbol} | Close Price: {closed_close} | History count: {len(history)}")
             
         required_len = max(self.ema_slow, self.rsi_period + 1)
         if len(history) < required_len:
@@ -72,14 +72,14 @@ class HighProbabilityNiftyStrategy(BaseStrategy):
         if ema_fast_prev <= ema_slow_prev and ema_fast_curr > ema_slow_curr:
             if rsi >= self.rsi_buy_min and self.position[symbol] <= 0:
                 self.position[symbol] = 1
-                logger.debug(f"{self.name} generated BUY signal for {symbol} | Fast EMA: {ema_fast_curr}, Slow EMA: {ema_slow_curr}, RSI: {rsi}")
+                logger.success(f"{self.name} generated BUY signal for {symbol} on closed candle | Price: {closed_close} | Fast EMA: {ema_fast_curr}, Slow EMA: {ema_slow_curr}, RSI: {rsi}")
                 return 1
                 
         # 2. Strong Bearish Crossover confirmed with RSI below sell threshold
         elif ema_fast_prev >= ema_slow_prev and ema_fast_curr < ema_slow_curr:
             if rsi <= self.rsi_sell_max and self.position[symbol] >= 0:
                 self.position[symbol] = -1
-                logger.debug(f"{self.name} generated SELL signal for {symbol} | Fast EMA: {ema_fast_curr}, Slow EMA: {ema_slow_curr}, RSI: {rsi}")
+                logger.success(f"{self.name} generated SELL signal for {symbol} on closed candle | Price: {closed_close} | Fast EMA: {ema_fast_curr}, Slow EMA: {ema_slow_curr}, RSI: {rsi}")
                 return -1
                 
         return 0
