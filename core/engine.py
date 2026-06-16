@@ -116,7 +116,7 @@ class TradingEngine:
             
             if elapsed_ms > 1000:
                 logger.warning(f"LATENCY ALERT -> Execution took {elapsed_ms:.2f}ms (>1000ms target) for {len(self.strategies)} strategies.")
-            else:
+            elif elapsed_ms > 200:
                 logger.debug(f"Concurrently evaluated {len(self.strategies)} strategies in {elapsed_ms:.3f}ms")
 
             # 3. Signal Processing:
