@@ -10,19 +10,23 @@ class Notifier:
         self.provider = self.config.get("provider", "twilio_whatsapp").lower()
 
     def send_alert(self, message: str):
-        """Dispatches a text alert based on selected notifications channel."""
+        """Dispatches a text alert based on selected notifications channel in a background thread."""
         log_msg = f"[NOTIFICATION ALERT] {message}"
         logger.info(log_msg)
         
         if not self.enabled:
             return
 
-        if self.provider == "telegram":
-            self._send_telegram(message)
-        elif self.provider == "twilio_sms":
-            self._send_twilio(message, channel="sms")
-        elif self.provider == "twilio_whatsapp":
-            self._send_twilio(message, channel="whatsapp")
+        import threading
+        def _dispatch():
+            if self.provider == "telegram":
+                self._send_telegram(message)
+            elif self.provider == "twilio_sms":
+                self._send_twilio(message, channel="sms")
+            elif self.provider == "twilio_whatsapp":
+                self._send_twilio(message, channel="whatsapp")
+
+        threading.Thread(target=_dispatch, daemon=True, name="Notification-Dispatcher").start()
 
     def send_daily_report(self):
         """

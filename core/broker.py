@@ -85,6 +85,8 @@ class DhanAdapter(BaseBroker):
                     
                     sec_id = str(message.get("security_id"))
                     ltp = message.get("ltp")
+                    if ltp is None:
+                        ltp = message.get("LTP")
                     
                     if not sec_id or ltp is None:
                         return
