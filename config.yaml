@@ -10,7 +10,7 @@ active_broker: "dhan"
 broker:
   dhan:
     client_id: "1108994075"
-    api_token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzgxMjg0MTIyLCJpYXQiOjE3ODExOTc3MjIsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA4OTk0MDc1In0.lD9FvKr-SB8w1BDix5QFFuBRQJok6aCYFZ1CBtFgy0rTd8_2RhovDSnPBx7ljGB1xi6LMclydCFFF0Ohd2wLFQ"
+    api_token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzgxNjgzMzY4LCJpYXQiOjE3ODE1OTY5NjgsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA4OTk0MDc1In0.sVXQWy3V4Z4jngFg6VrN04VAFjM2L7YjD_S95NYX1bBcItdaRP8026Mxf24GaXVg3xHZoHAB1CPixyoFPkTpag"
   paper:
     initial_capital: 1000000.0
     tick_interval_seconds: 0.01 # Fast updates for realistic testing

@@ -24,7 +24,7 @@ class BaseBroker(ABC):
 class DhanAdapter(BaseBroker):
     def __init__(self, client_id: str, api_token: str):
         self.client_id = client_id if client_id and "YOUR_DHAN" not in client_id else "1108994075"
-        self.api_token = api_token if api_token and "YOUR_DHAN" not in api_token else "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzgxMjg0MTIyLCJpYXQiOjE3ODExOTc3MjIsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA4OTk0MDc1In0.lD9FvKr-SB8w1BDix5QFFuBRQJok6aCYFZ1CBtFgy0rTd8_2RhovDSnPBx7ljGB1xi6LMclydCFFF0Ohd2wLFQ"
+        self.api_token = api_token if api_token and "YOUR_DHAN" not in api_token else "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzgxNjgzMzY4LCJpYXQiOjE3ODE1OTY5NjgsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA4OTk0MDc1In0.sVXQWy3V4Z4jngFg6VrN04VAFjM2L7YjD_S95NYX1bBcItdaRP8026Mxf24GaXVg3xHZoHAB1CPixyoFPkTpag"
         self.loop = None
         self.queue = None
         self.feed = None
