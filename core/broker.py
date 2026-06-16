@@ -107,8 +107,16 @@ class DhanAdapter(BaseBroker):
                 except Exception as e:
                     logger.error(f"Error parsing Dhan websocket message: {e}")
 
+            def on_error(instance, error):
+                logger.error(f"Dhan WebSocket Feed encountered error: {error}")
+                
+            def on_close(instance):
+                logger.warning("Dhan WebSocket Feed connection closed.")
+
             self.feed.on_connect = on_connect
             self.feed.on_message = on_message
+            self.feed.on_error = on_error
+            self.feed.on_close = on_close
             
             self.feed.run()
             
