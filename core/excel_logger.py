@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime, timezone, timedelta
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -24,8 +25,12 @@ class ExcelLogger:
             "P&L", "Peak Run (Pts)", "Reason", "Account Balance"
         ]
         
+        # Convert timestamp to Indian Standard Time (IST: UTC+5:30)
+        ist_tz = timezone(timedelta(hours=5, minutes=30))
+        trade_time_ist = datetime.fromtimestamp(trade_data.get("timestamp", time.time()), ist_tz)
+        
         trade_values = [
-            time.strftime("%H:%M:%S", time.localtime(trade_data.get("timestamp", time.time()))),
+            trade_time_ist.strftime("%H:%M:%S"),
             trade_data.get("symbol"),
             trade_data.get("instrument", "N/A"),
             trade_data.get("action"),
