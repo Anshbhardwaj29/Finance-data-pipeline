@@ -26,7 +26,7 @@ broker:
 # Risk Management parameters
 risk:
   risk_reward_ratio: 1.5 # Target premium probability
-  risk_percentage_per_trade: 0.0005 # 0.05% risk
+  risk_percentage_per_trade: 0.002 # 0.2% index risk for realistic Stop Loss margin
   default_qty: 25 # Nifty Lot Size
 
 # Strategies configuration
