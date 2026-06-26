@@ -22,7 +22,7 @@ class ExcelLogger:
         headers = [
             "Time", "Symbol", "Instrument", "Action", "Qty", 
             "Entry Index", "Exit Index", "Entry Premium", "Exit Premium", 
-            "P&L", "Peak Run (Pts)", "Reason", "Account Balance"
+            "P&L", "Peak Run (Pts)", "Reason", "Trading Charges", "Account Balance"
         ]
         
         # Convert timestamp to Indian Standard Time (IST: UTC+5:30)
@@ -42,6 +42,7 @@ class ExcelLogger:
             round(trade_data.get("pnl", 0.0), 2),
             round(trade_data.get("peak_run", 0.0), 2),
             trade_data.get("reason", "STRATEGY EXIT"),
+            round(trade_data.get("commission", 0.0), 2),
             round(portfolio_summary.get("current_balance", 0.0), 2)
         ]
         
@@ -88,7 +89,7 @@ class ExcelLogger:
         )
         
         # Format Headers (Row 1)
-        for col in range(1, 14):
+        for col in range(1, 15):
             cell = ws.cell(row=1, column=col)
             cell.fill = header_fill
             cell.font = header_font
@@ -106,7 +107,7 @@ class ExcelLogger:
             # Dynamic conditional formatting
             fill_color = green_fill if pnl_val > 0 else (red_fill if pnl_val < 0 else None)
             
-            for col in range(1, 14):
+            for col in range(1, 15):
                 cell = ws.cell(row=row, column=col)
                 cell.font = data_font
                 cell.border = thin_border
@@ -114,7 +115,7 @@ class ExcelLogger:
                 # Alignment & Number Formatting
                 if col in [1, 2, 3, 4]: # Time, Symbol, Instrument, Action
                     cell.alignment = Alignment(horizontal="center")
-                elif col in [5, 6, 7, 8, 9, 10, 11, 13]: # Qty, Entry/Exit Index, Entry/Exit Premium, P&L, Peak Run, Balance
+                elif col in [5, 6, 7, 8, 9, 10, 11, 13, 14]: # Qty, Entry/Exit Index, Entry/Exit Premium, P&L, Peak Run, Charges, Balance
                     cell.alignment = Alignment(horizontal="right")
                     cell.number_format = '#,##0.00'
                 else: # Reason

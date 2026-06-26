@@ -11,6 +11,9 @@ class CandleAggregator:
         # Stores history of completed/closed candles for each symbol:
         # { symbol: [close_price1, close_price2, ...] }
         self.candle_history: Dict[str, List[float]] = {}
+        # Stores history of completed/closed OHLC candle dictionaries:
+        # { symbol: [ {"open": ..., "high": ..., "low": ..., "close": ..., "start_time": ...}, ... ] }
+        self.ohlc_history: Dict[str, List[Dict[str, float]]] = {}
         logger.info(f"Initialized CandleAggregator with timeframe: {self.timeframe_seconds} seconds.")
 
     def aggregate(self, tick: Dict[str, Any]) -> Optional[float]:
@@ -36,6 +39,8 @@ class CandleAggregator:
             }
             if symbol not in self.candle_history:
                 self.candle_history[symbol] = []
+            if symbol not in self.ohlc_history:
+                self.ohlc_history[symbol] = []
             return None
 
         candle = self.current_candles[symbol]
@@ -43,13 +48,17 @@ class CandleAggregator:
         if timestamp >= candle["start_time"] + self.timeframe_seconds:
             # The current candle is closed!
             closed_close = candle["close"]
+            closed_candle = candle.copy()
             
-            # Save closed price to history
+            # Save closed price and full OHLC candle to history
             self.candle_history[symbol].append(closed_close)
+            self.ohlc_history[symbol].append(closed_candle)
             
             # Limit history to prevent memory leak (keep last 200 candles)
             if len(self.candle_history[symbol]) > 200:
                 self.candle_history[symbol].pop(0)
+            if len(self.ohlc_history[symbol]) > 200:
+                self.ohlc_history[symbol].pop(0)
 
             # Start new candle
             new_start_time = (timestamp // self.timeframe_seconds) * self.timeframe_seconds

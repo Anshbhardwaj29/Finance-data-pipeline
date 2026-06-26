@@ -445,12 +445,13 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                             <th>Index Entry/Exit</th>
                             <th>Premium Entry/Exit</th>
                             <th>P&L</th>
+                            <th>Charges</th>
                             <th>Peak Run</th>
                             <th>Exit Reason</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td colspan="9" style="text-align: center; color: var(--text-muted);">No records reported yet.</td></tr>
+                        <tr><td colspan="10" style="text-align: center; color: var(--text-muted);">No records reported yet.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -575,6 +576,7 @@ class DashboardHTTPHandler(BaseHTTPRequestHandler):
                                 <td>₹${t.entry_price.toFixed(2)} → ₹${t.exit_price.toFixed(2)}</td>
                                 <td>₹${t.entry_premium.toFixed(2)} → ₹${t.exit_premium.toFixed(2)}</td>
                                 <td class="${t.pnl > 0 ? 'pnl-green' : 'pnl-red'}">₹${(t.pnl >= 0 ? '+' : '')}${t.pnl.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                                <td>₹${(t.commission || 0.0).toFixed(2)}</td>
                                 <td>+${t.peak_run.toFixed(2)} pts</td>
                                 <td><span style="font-size:0.85rem; opacity:0.8; font-weight:500;">${t.reason}</span></td>
                             </tr>

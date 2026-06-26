@@ -177,7 +177,11 @@ class PaperBroker(BaseBroker):
             "ITC": 430.0,
             "LT": 3500.0,
             "NIFTY50": 22500.0,
-            "BANKNIFTY": 48000.0
+            "BANKNIFTY": 48000.0,
+            "INDIGO": 4000.0,
+            "AXISBANK": 1200.0,
+            "DRREDDY": 6000.0,
+            "TECHM": 1400.0
         }
         
         self.price_track = {

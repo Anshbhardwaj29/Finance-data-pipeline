@@ -12,6 +12,9 @@ class RiskManager:
         self.rr_ratio = risk_cfg.get("risk_reward_ratio", 2.0)
         self.risk_pct = risk_cfg.get("risk_percentage_per_trade", 0.01)
         self.default_qty = risk_cfg.get("default_qty", 10)
+        self.symbol_quantities = risk_cfg.get("symbol_quantities", {})
+        self.trade_type = settings.config.get("trade_type", "OPTION").upper()
+        self.commission_value = settings.config.get("commission_value", 0.0)
         
         # Load paper trading settings
         paper_cfg = settings.broker_config.get("paper", {})
@@ -39,17 +42,28 @@ class RiskManager:
         self.total_losses_avoided = 0
         self.total_peak_runs: List[float] = []
 
+    def get_trade_qty(self, symbol: str) -> int:
+        """Retrieves trade quantity for the symbol from config, falling back to default_qty."""
+        return self.symbol_quantities.get(symbol, self.default_qty)
+
     def check_order_risk(self, symbol: str, action: str, qty: int, price: float) -> bool:
         """
         Enforce pre-trade checks.
         Ensures we have enough capital to enter the position.
         """
-        # Option Premium calculation at entry
-        entry_premium = round(price * 0.01, 2)
-        cost = entry_premium * qty
-        if action == "BUY" and self.balance < cost:
-            logger.warning(f"RISK REJECT -> Insufficient funds for {symbol} Option BUY. Required: Rs.{cost:.2f}, Available: Rs.{self.balance:.2f}")
-            return False
+        if self.trade_type == "EQUITY":
+            # For intraday equity trading, we have 5x leverage, so margin required is 20% of position value
+            required_margin = (price * qty) / 5.0
+            if self.balance < required_margin:
+                logger.warning(f"RISK REJECT -> Insufficient funds (5x Leverage Margin) for {symbol} Equity {action}. Required: Rs.{required_margin:.2f}, Available: Rs.{self.balance:.2f}")
+                return False
+        else:
+            # Option Premium calculation at entry
+            entry_premium = round(price * 0.01, 2)
+            cost = entry_premium * qty
+            if action == "BUY" and self.balance < cost:
+                logger.warning(f"RISK REJECT -> Insufficient funds for {symbol} Option BUY. Required: Rs.{cost:.2f}, Available: Rs.{self.balance:.2f}")
+                return False
         
         # Check if we already have an active position on this symbol to prevent over-leveraging
         if symbol in self.positions:
@@ -73,47 +87,79 @@ class RiskManager:
         return sl, tp
 
     async def register_trade(self, symbol: str, action: str, qty: int, price: float, order_id: str):
-        """Records trade and updates portfolio state using ATM Option BUY model."""
-        sl, tp = self.calculate_sl_tp(action, price)
-        
-        # 1. ATM Strike Price rounding
-        if "BANKNIFTY" in symbol:
-            strike_interval = 100
-        elif "NIFTY" in symbol:
-            strike_interval = 50
+        """Records trade and updates portfolio state using ATM Option BUY or Leveraged Equity model."""
+        if self.trade_type == "EQUITY":
+            # For equity, strategy will manage trailing SL. We set a wide SL (10%) and TP (50%) as defaults.
+            sl = round(price * 0.9, 2) if action == "BUY" else round(price * 1.1, 2)
+            tp = round(price * 1.5, 2) if action == "BUY" else round(price * 0.5, 2)
+            instrument_name = symbol
+            entry_premium = price
+            
+            # For 5x leverage equity, entry cash is not deducted from balance (only margin is blocked).
+            # We deduct the entry commission fee from available balance.
+            self.balance -= self.commission_value
+            
+            self.positions[symbol] = {
+                "order_id": order_id,
+                "action": action, 
+                "qty": qty,
+                "entry_price": price,
+                "highest_price": price,
+                "lowest_price": price,
+                "strike": 0,
+                "option_type": "EQUITY",
+                "instrument": instrument_name,
+                "entry_premium": entry_premium,
+                "current_premium": entry_premium,
+                "current_price": price,
+                "sl": sl,
+                "tp": tp,
+                "sl_trailed": False,
+                "timestamp": time.time(),
+                "commission": self.commission_value
+            }
+            logger.info(f"RISK REGISTERED -> Equity Trade: {instrument_name} {action} | Qty: {qty} | Price: Rs.{price} | Balance: Rs.{self.balance:.2f} (Charge: Rs.{self.commission_value})")
         else:
-            strike_interval = 10
-        
-        strike = int(round(price / strike_interval) * strike_interval)
-        option_type = "CE" if action == "BUY" else "PE"
-        instrument_name = f"{symbol} {strike} {option_type}"
-        
-        # 2. Estimate entry premium (1% of index price)
-        entry_premium = round(price * 0.01, 2)
-        cost = entry_premium * qty
-        
-        # Adjust virtual balance for purchase cost (simulated options buy)
-        self.balance -= cost
-        
-        self.positions[symbol] = {
-            "order_id": order_id,
-            "action": action, # BUY index -> buy Call, SELL index -> buy Put
-            "qty": qty,
-            "entry_price": price,
-            "highest_price": price,
-            "lowest_price": price,
-            "strike": strike,
-            "option_type": option_type,
-            "instrument": instrument_name,
-            "entry_premium": entry_premium,
-            "current_premium": entry_premium,
-            "sl": sl,
-            "tp": tp,
-            "sl_trailed": False, # Trail to breakeven status
-            "timestamp": time.time()
-        }
-        
-        logger.info(f"RISK REGISTERED -> Option BUY: {instrument_name} | Premium: Rs.{entry_premium} | Index Entry: Rs.{price} | Index SL: {sl} | Index TP: {tp} | Balance: Rs.{self.balance:.2f}")
+            sl, tp = self.calculate_sl_tp(action, price)
+            
+            # 1. ATM Strike Price rounding
+            if "BANKNIFTY" in symbol:
+                strike_interval = 100
+            elif "NIFTY" in symbol:
+                strike_interval = 50
+            else:
+                strike_interval = 10
+            
+            strike = int(round(price / strike_interval) * strike_interval)
+            option_type = "CE" if action == "BUY" else "PE"
+            instrument_name = f"{symbol} {strike} {option_type}"
+            
+            # 2. Estimate entry premium (1% of index price)
+            entry_premium = round(price * 0.01, 2)
+            cost = entry_premium * qty
+            
+            # Adjust virtual balance for purchase cost and commission
+            self.balance -= (cost + self.commission_value)
+            
+            self.positions[symbol] = {
+                "order_id": order_id,
+                "action": action, 
+                "qty": qty,
+                "entry_price": price,
+                "highest_price": price,
+                "lowest_price": price,
+                "strike": strike,
+                "option_type": option_type,
+                "instrument": instrument_name,
+                "entry_premium": entry_premium,
+                "current_premium": entry_premium,
+                "sl": sl,
+                "tp": tp,
+                "sl_trailed": False, 
+                "timestamp": time.time(),
+                "commission": self.commission_value
+            }
+            logger.info(f"RISK REGISTERED -> Option BUY: {instrument_name} | Premium: Rs.{entry_premium} | Index Entry: Rs.{price} | Index SL: {sl} | Index TP: {tp} | Balance: Rs.{self.balance:.2f} (Charge: Rs.{self.commission_value})")
 
         # Initialize Parallel RR Trackers for this signal
         risk_points = price * self.risk_pct
@@ -148,18 +194,19 @@ class RiskManager:
         # Send real-time notification alert on entry
         if hasattr(self, 'engine'):
             self.engine.notifier.send_alert(
-                f"🟢 *OPTION POSITION OPENED* 🟢\n"
+                f"🟢 *POSITION OPENED* 🟢\n"
                 f"Instrument: {instrument_name}\n"
-                f"Index Price: ₹{price:.2f}\n"
-                f"Premium Cost: ₹{entry_premium:.2f}\n"
+                f"Action: {action}\n"
+                f"Entry Price: ₹{price:.2f}\n"
                 f"Qty: {qty}\n"
-                f"SL: ₹{sl:.2f} | TP: ₹{tp:.2f}"
+                f"SL: ₹{sl:.2f} | TP: ₹{tp:.2f}\n"
+                f"Commission blocked: ₹{self.commission_value:.2f}"
             )
 
     async def monitor_open_positions(self, tick: Dict[str, Any]):
         """
         Monitors live price ticks.
-        Calculates Option Premium adjustments using Delta=0.5.
+        Calculates Option Premium adjustments using Delta=0.5 or Equity P&L directly.
         Applies Loss Optimization (Break-Even stop trailing) and tracks parallel RRs.
         """
         symbol = tick['symbol']
@@ -202,17 +249,19 @@ class RiskManager:
                             
                     if unopt_exit_reason:
                         state["unopt_active"] = False
-                        # Calculate Option premium at exit
                         p_dir = 1 if action == "BUY" else -1
-                        exit_premium = max(1.0, entry_premium + 0.5 * (unopt_exit_price - entry_price) * p_dir)
-                        pnl = round((exit_premium - entry_premium) * qty, 2)
+                        if self.trade_type == "EQUITY":
+                            pnl = round((unopt_exit_price - entry_price) * qty * p_dir, 2)
+                        else:
+                            exit_premium = max(1.0, entry_premium + 0.5 * (unopt_exit_price - entry_price) * p_dir)
+                            pnl = round((exit_premium - entry_premium) * qty, 2)
                         
                         if unopt_exit_reason == "TP":
                             self.rr_performance[RR]["unopt_wins"] += 1
                         else:
                             self.rr_performance[RR]["unopt_losses"] += 1
                         self.rr_performance[RR]["unopt_pnl"] += pnl
-                        logger.info(f"PARALLEL TRACKER -> {symbol} Unoptimized RR 1:{RR} closed on {unopt_exit_reason}. Premium P&L: Rs.{pnl:+.2f}")
+                        logger.info(f"PARALLEL TRACKER -> {symbol} Unoptimized RR 1:{RR} closed on {unopt_exit_reason}. P&L: Rs.{pnl:+.2f}")
                 
                 # --- Optimized RR check (Break-even Trailing) ---
                 if state["opt_active"]:
@@ -250,12 +299,14 @@ class RiskManager:
                     if opt_exit_reason:
                         state["opt_active"] = False
                         p_dir = 1 if action == "BUY" else -1
-                        exit_premium = max(1.0, entry_premium + 0.5 * (opt_exit_price - entry_price) * p_dir)
-                        pnl = round((exit_premium - entry_premium) * qty, 2)
+                        if self.trade_type == "EQUITY":
+                            pnl = round((opt_exit_price - entry_price) * qty * p_dir, 2)
+                        else:
+                            exit_premium = max(1.0, entry_premium + 0.5 * (opt_exit_price - entry_price) * p_dir)
+                            pnl = round((exit_premium - entry_premium) * qty, 2)
                         
                         # Check if we saved a loss
                         if opt_exit_reason == "SL" and state["opt_sl_trailed"]:
-                            # Hit break-even instead of full loss!
                             self.total_losses_avoided += 1
                             logger.info(f"PARALLEL OPTIMIZER SUCCESS -> Saved potential loss for {symbol} RR 1:{RR} (Exited at Break-Even).")
                         
@@ -264,12 +315,12 @@ class RiskManager:
                         else:
                             self.rr_performance[RR]["opt_losses"] += 1
                         self.rr_performance[RR]["opt_pnl"] += pnl
-                        logger.info(f"PARALLEL TRACKER -> {symbol} Optimized RR 1:{RR} closed on {opt_exit_reason}. Premium P&L: Rs.{pnl:+.2f}")
+                        logger.info(f"PARALLEL TRACKER -> {symbol} Optimized RR 1:{RR} closed on {opt_exit_reason}. P&L: Rs.{pnl:+.2f}")
             
             # Clean up trackers when all setups have completed
             if active_count == 0:
                 del self.active_rr_trackers[symbol]
-
+ 
         # 2. Update Live Active Position
         if symbol not in self.positions:
             return
@@ -287,15 +338,20 @@ class RiskManager:
         # Keep track of highest / lowest index prices reached during trade
         pos["highest_price"] = max(pos.get("highest_price", current_price), current_price)
         pos["lowest_price"] = min(pos.get("lowest_price", current_price), current_price)
+        pos["current_price"] = current_price
         
-        # Calculate Simulated Option Premium (Delta = 0.5 ATM)
-        p_dir = 1 if option_type == "CE" else -1
-        current_premium = round(max(1.0, entry_premium + 0.5 * (current_price - entry_price) * p_dir), 2)
-        pos["current_premium"] = current_premium
+        # Calculate Simulated Option Premium (Delta = 0.5 ATM) or Stock Price equivalent
+        if self.trade_type == "EQUITY":
+            current_premium = current_price
+            pos["current_premium"] = current_price
+        else:
+            p_dir = 1 if option_type == "CE" else -1
+            current_premium = round(max(1.0, entry_premium + 0.5 * (current_price - entry_price) * p_dir), 2)
+            pos["current_premium"] = current_premium
         
         # --- Live Loss Optimization ---
-        # Break-Even: If price goes halfway to TP, move SL to entry index price
-        if not pos["sl_trailed"]:
+        # Break-Even: If price goes halfway to TP, move SL to entry index price (only for options)
+        if self.trade_type == "OPTION" and not pos["sl_trailed"]:
             target_dist = abs(tp - entry_price)
             current_dist = (current_price - entry_price) if action == "BUY" else (entry_price - current_price)
             if current_dist >= 0.5 * target_dist:
@@ -303,11 +359,14 @@ class RiskManager:
                 pos["sl_trailed"] = True
                 sl = entry_price
                 logger.success(f"LOSS OPTIMIZER -> {instrument} price moved 50% to target. Stop Loss trailed to entry (Break-Even: Rs.{entry_price}) to protect premium!")
-
+ 
         triggered_exit = False
         exit_reason = ""
         
-        if action == "BUY":
+        if pos.get("force_exit"):
+            triggered_exit = True
+            exit_reason = pos.get("reason", "INTRADAY CLOSE")
+        elif action == "BUY":
             if current_price <= sl:
                 triggered_exit = True
                 exit_reason = "STOP LOSS TRIGGERED" if not pos["sl_trailed"] else "BREAK-EVEN STOP TRIGGERED"
@@ -325,18 +384,25 @@ class RiskManager:
         if triggered_exit:
             exit_action = "SELL" if action == "BUY" else "BUY"
             
-            # Calculate final Option P&L
-            pnl = round((current_premium - entry_premium) * qty, 2)
+            # Calculate final Trade P&L (incorporating entry & exit commissions)
+            p_dir = 1 if action == "BUY" else -1
+            if self.trade_type == "EQUITY":
+                pnl = round((current_price - entry_price) * qty * p_dir, 2)
+                pnl -= self.commission_value # deduct exit commission from P&L
+                
+                # Settle margin account balance by adjusting balance by net realized trade P&L
+                self.balance += pnl
+            else:
+                pnl = round((current_premium - entry_premium) * qty, 2)
+                pnl -= self.commission_value # deduct exit commission from P&L
+                self.balance += (current_premium * qty - self.commission_value)
             
-            logger.critical(f"RISK ALERT -> {instrument} {exit_reason} | Premium: Rs.{current_premium} (Entry: Rs.{entry_premium}) | P&L: Rs.{pnl:+.2f}")
+            logger.critical(f"RISK ALERT -> {instrument} {exit_reason} | Price: Rs.{current_price} (Entry: Rs.{entry_price}) | P&L: Rs.{pnl:+.2f} (Charge: Rs.{self.commission_value})")
             
             # Place exit order with the broker (simulated or live)
             exit_order = await self.broker.place_order(symbol, exit_action, qty, current_price)
             
             if exit_order.get("status") == "SUCCESS":
-                # Credit the simulated options sale premium proceeds back to balance
-                self.balance += current_premium * qty
-                
                 # Calculate Peak points run (MFE)
                 peak_run = round((pos["highest_price"] - entry_price) if action == "BUY" else (entry_price - pos["lowest_price"]), 2)
                 self.total_peak_runs.append(peak_run)
@@ -352,27 +418,28 @@ class RiskManager:
                     "qty": qty,
                     "entry_price": entry_price,
                     "exit_price": current_price,
-                    "entry_premium": entry_premium,
-                    "exit_premium": current_premium,
+                    "entry_premium": entry_price if self.trade_type == "EQUITY" else entry_premium,
+                    "exit_premium": current_price if self.trade_type == "EQUITY" else current_premium,
                     "pnl": pnl,
                     "peak_run": peak_run,
                     "reason": exit_reason,
-                    "timestamp": time.time()
+                    "timestamp": time.time(),
+                    "commission": self.commission_value * 2 # entry + exit charges
                 }
                 self.trade_history.append(trade_data)
                 
-                logger.success(f"OPTION POSITION CLOSED -> {instrument} P&L: Rs.{pnl:+.2f} | Peak Points Run: {peak_run} | Balance: Rs.{self.balance:.2f}")
-
+                logger.success(f"POSITION CLOSED -> {instrument} P&L: Rs.{pnl:+.2f} | Peak Points Run: {peak_run} | Balance: Rs.{self.balance:.2f} (Total Charges: Rs.{self.commission_value * 2})")
+ 
                 # Excel logging and Notification Alert
                 if hasattr(self, 'engine'):
                     self.engine.excel_logger.log_trade(trade_data, self.get_portfolio_summary())
                     self.engine.notifier.send_alert(
-                        f"🔴 *OPTION POSITION CLOSED* 🔴\n"
+                        f"🔴 *POSITION CLOSED* 🔴\n"
                         f"Instrument: {instrument}\n"
-                        f"Index Entry/Exit: ₹{entry_price:.2f} / ₹{current_price:.2f}\n"
-                        f"Premium Entry/Exit: ₹{entry_premium:.2f} / ₹{current_premium:.2f}\n"
+                        f"Entry/Exit Price: ₹{entry_price:.2f} / ₹{current_price:.2f}\n"
                         f"P&L: ₹{pnl:+.2f} ({exit_reason})\n"
-                        f"Peak Index Points Run: +{peak_run:.2f} pts"
+                        f"Total Trading Charges: ₹{self.commission_value * 2:.2f}\n"
+                        f"Peak Points Run: +{peak_run:.2f} pts"
                     )
 
     def get_portfolio_summary(self) -> Dict[str, Any]:

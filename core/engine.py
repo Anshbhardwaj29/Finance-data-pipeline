@@ -68,6 +68,7 @@ class TradingEngine:
         thread.start()
 
     def add_strategy(self, strategy: BaseStrategy):
+        strategy.engine = self
         self.strategies.append(strategy)
         logger.info(f"Strategy Registered: {strategy.name}")
 
@@ -76,7 +77,7 @@ class TradingEngine:
         Executes order placement and risk registration in a background task
         to prevent blocking the main tick-processing event loop.
         """
-        qty = self.risk_manager.default_qty
+        qty = self.risk_manager.get_trade_qty(symbol)
         
         # 1. Pre-trade Risk Verification
         if not self.risk_manager.check_order_risk(symbol, action, qty, price):

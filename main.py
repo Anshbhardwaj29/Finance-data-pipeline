@@ -6,6 +6,7 @@ from core.broker import DhanAdapter, PaperBroker, BinanceAdapter
 from core.engine import TradingEngine
 from strategies.sma_crossover import SMACrossoverStrategy
 from strategies.high_probability_nifty import HighProbabilityNiftyStrategy
+from strategies.axis_hdfc_multi_tier import AxisHDFCMultiTierStrategy
 from strategies.base import BaseStrategy
 
 # A dummy strategy to test isolation and verify that crashes do not stop other strategies
@@ -70,12 +71,20 @@ async def main():
                 timeframe_seconds=strat_params.get("timeframe_seconds", 60)
             )
             engine.add_strategy(strategy)
+        elif strat_type == "Axis_HDFC_Multi_Tier":
+            strategy = AxisHDFCMultiTierStrategy(
+                ema_filter_len=strat_params.get("ema_filter_len", 50),
+                st_period=strat_params.get("st_period", 10),
+                st_multiplier=strat_params.get("st_multiplier", 2.5),
+                timeframe_seconds=strat_params.get("timeframe_seconds", 60)
+            )
+            engine.add_strategy(strategy)
         else:
             logger.warning(f"Unsupported strategy type in configuration: {strat_type}")
 
     # 4. Inject Crash-Test Strategy (Verification for strict isolation)
-    logger.info("Injecting Crash-Test Strategy (11th Strategy) for isolation validation...")
-    engine.add_strategy(CrashTestStrategy())
+    # logger.info("Injecting Crash-Test Strategy (11th Strategy) for isolation validation...")
+    # engine.add_strategy(CrashTestStrategy())
 
     # 5. Start the Engine Loop
     try:
