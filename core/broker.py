@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 import random
 import json
@@ -23,8 +24,13 @@ class BaseBroker(ABC):
 
 class DhanAdapter(BaseBroker):
     def __init__(self, client_id: str, api_token: str):
-        self.client_id = client_id if client_id and "YOUR_DHAN" not in client_id else "1108994075"
-        self.api_token = api_token if api_token and "YOUR_DHAN" not in api_token else "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzgxNjgzMzY4LCJpYXQiOjE3ODE1OTY5NjgsInRva2VuQ29uc3VtZXJUeXBlIjoiU0VMRiIsIndlYmhvb2tVcmwiOiIiLCJkaGFuQ2xpZW50SWQiOiIxMTA4OTk0MDc1In0.sVXQWy3V4Z4jngFg6VrN04VAFjM2L7YjD_S95NYX1bBcItdaRP8026Mxf24GaXVg3xHZoHAB1CPixyoFPkTpag"
+        # Resolve from passed parameters or check environment variables directly
+        self.client_id = client_id if (client_id and "YOUR_DHAN" not in client_id and not client_id.startswith("${")) else os.environ.get("DHAN_CLIENT_ID", "")
+        self.api_token = api_token if (api_token and "YOUR_DHAN" not in api_token and not api_token.startswith("${")) else os.environ.get("DHAN_API_TOKEN", "")
+
+        if not self.client_id or not self.api_token:
+            logger.error("Dhan API credentials (client_id / api_token) are missing or set to placeholder!")
+
         self.loop = None
         self.queue = None
         self.feed = None

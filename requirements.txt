@@ -6,3 +6,4 @@ websockets
 openpyxl
 requests
 dhanhq
+python-dotenv
